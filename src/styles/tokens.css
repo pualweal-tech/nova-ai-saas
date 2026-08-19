@@ -1,0 +1,63 @@
+:root {
+  --color-primary: #0050cb;
+  --color-primary-container: #0066ff;
+  --color-secondary-container: #6063ee;
+  --color-tertiary-container: #008259;
+  --color-error: #ba1a1a;
+  --color-warning: #c47b16;
+  --color-surface-lowest: #ffffff;
+  --color-background: #f8f9fa;
+  --color-surface-low: #f3f4f5;
+  --color-surface-high: #e7e8e9;
+  --color-surface-highest: #e1e3e4;
+  --color-on-surface: #191c1d;
+  --color-on-surface-variant: #424656;
+  --color-outline: #727687;
+  --color-outline-variant: #c2c6d8;
+  --color-inverse-surface: #2e3132;
+  --color-inverse-on-surface: #f0f1f2;
+  --color-on-primary: #ffffff;
+  --color-overlay: rgba(25, 28, 29, 0.2);
+  --color-workspace-canvas: color-mix(in srgb, var(--color-primary) 6%, var(--color-surface-lowest));
+  --color-success-soft: color-mix(in srgb, var(--color-tertiary-container) 10%, transparent);
+  --color-error-soft: color-mix(in srgb, var(--color-error) 10%, transparent);
+  --color-pending-soft: color-mix(in srgb, var(--color-outline-variant) 30%, transparent);
+  --color-warning-soft: color-mix(in srgb, var(--color-warning) 14%, transparent);
+  --color-primary-soft: color-mix(in srgb, var(--color-primary) 10%, transparent);
+
+  --font-body: Inter, Arial, sans-serif;
+  --font-label: Geist, Inter, Arial, sans-serif;
+  --font-mono: Geist, ui-monospace, monospace;
+
+  --text-page: 32px;
+  --text-heading: 20px;
+  --text-body: 14px;
+  --text-label: 12px;
+  --text-micro: 10px;
+  --text-legend: 11px;
+  --line-body: 1.5;
+
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 16px;
+  --space-4: 24px;
+  --space-5: 40px;
+  --space-chart: 32px;
+  --space-notify: 12px;
+
+  --sidebar-width: 256px;
+  --topbar-height: 64px;
+  --content-max: 1280px;
+  --history-width: 320px;
+  --analysis-width: 360px;
+
+  --radius-sm: 4px;
+  --radius-md: 8px;
+  --radius-lg: 16px;
+  --radius-pill: 9999px;
+
+  --border: 1px solid var(--color-outline-variant);
+  --shadow-popover: 0 12px 28px rgba(25, 28, 29, 0.12);
+  --transition: 200ms ease;
+  --row-height: 56px;
+}
