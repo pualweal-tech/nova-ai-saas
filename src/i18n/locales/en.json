@@ -1,0 +1,56 @@
+{
+  "common": {
+    "english": "English",
+    "chinese": "中文",
+    "switchLanguage": "Switch language"
+  },
+  "nav": {
+    "dashboard": "Dashboard",
+    "projects": "Projects",
+    "analytics": "Analytics",
+    "team": "Team",
+    "templates": "Templates",
+    "billing": "Billing",
+    "settings": "Settings"
+  },
+  "layout": {
+    "primaryNav": "Primary navigation",
+    "brandTagline": "Product Workspace",
+    "newAnalysis": "New Project",
+    "upgradePlan": "Upgrade Plan",
+    "support": "Support",
+    "admin": "Admin",
+    "searchPlaceholder": "Search...",
+    "toggleMenu": "Toggle menu",
+    "notifications": "Notifications",
+    "markAllAsRead": "Mark all as read",
+    "help": "Help",
+    "openUserMenu": "Open user menu",
+    "userMenu": "User menu",
+    "profile": "Profile",
+    "accountSettings": "Account settings",
+    "signOut": "Sign out",
+    "documentation": "Documentation"
+  },
+  "welcome": {
+    "product": "Product",
+    "solutions": "Solutions",
+    "pricing": "Pricing",
+    "docs": "Docs",
+    "login": "Log in",
+    "start": "Start creating",
+    "live": "NOVA AI 2.0 IS LIVE",
+    "headline1": "Let an AI team help you",
+    "headline2": "create products",
+    "body": "Start from an idea. NOVA AI plans the product, UX, UI, and code. Keep the creative work; leave execution to specialized agents.",
+    "watch": "Watch demo",
+    "status": "Status",
+    "footer": "© 2026 NOVA AI. All rights reserved.",
+    "agents": {
+      "product": { "title": "Product Agent", "copy": "Requirements, feature definition, and product roadmap." },
+      "ux": { "title": "UX Agent", "copy": "Information architecture, interaction logic, and wireframes." },
+      "design": { "title": "Design Agent", "copy": "High-fidelity UI, design system, and visual polish." },
+      "code": { "title": "Code Agent", "copy": "Frontend components, API integration, and deployment." }
+    }
+  }
+}

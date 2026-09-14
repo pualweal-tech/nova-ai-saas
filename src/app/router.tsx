@@ -22,9 +22,10 @@ export function Router({ children }: { children: ReactNode }) {
   }, [])
 
   const navigate = useCallback((to: string) => {
-    if (to === window.location.pathname) return
-    window.history.pushState({}, '', to)
-    setPath(to)
+    const url = to.startsWith('/') ? to : `/${to}`
+    if (url === window.location.pathname) return
+    window.history.pushState({}, '', url)
+    setPath(url)
   }, [])
 
   const value = useMemo(() => ({ path, navigate }), [path, navigate])
@@ -47,12 +48,13 @@ export function Link({
   children: ReactNode
 }) {
   const { navigate, path } = useRouter()
+  const active = path === to || (to !== '/' && path.startsWith(`${to}/`))
   return createElement(
     'a',
     {
       href: to,
       className,
-      'aria-current': path === to ? 'page' : undefined,
+      'aria-current': active ? 'page' : undefined,
       onClick: (event: { preventDefault: () => void }) => {
         event.preventDefault()
         navigate(to)
@@ -60,4 +62,9 @@ export function Link({
     },
     children,
   )
+}
+
+export function projectIdFromPath(path: string) {
+  const match = path.match(/^\/projects\/([^/]+)$/)
+  return match ? decodeURIComponent(match[1]) : null
 }

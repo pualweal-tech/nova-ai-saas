@@ -1,0 +1,56 @@
+{
+  "common": {
+    "english": "English",
+    "chinese": "中文",
+    "switchLanguage": "切换语言"
+  },
+  "nav": {
+    "dashboard": "工作台",
+    "projects": "项目",
+    "analytics": "分析",
+    "team": "团队",
+    "templates": "模板",
+    "billing": "账单",
+    "settings": "设置"
+  },
+  "layout": {
+    "primaryNav": "主导航",
+    "brandTagline": "产品工作空间",
+    "newAnalysis": "新建项目",
+    "upgradePlan": "升级方案",
+    "support": "支持",
+    "admin": "管理员",
+    "searchPlaceholder": "搜索...",
+    "toggleMenu": "打开菜单",
+    "notifications": "通知",
+    "markAllAsRead": "全部标为已读",
+    "help": "帮助",
+    "openUserMenu": "打开用户菜单",
+    "userMenu": "用户菜单",
+    "profile": "个人资料",
+    "accountSettings": "账户设置",
+    "signOut": "退出",
+    "documentation": "文档"
+  },
+  "welcome": {
+    "product": "产品",
+    "solutions": "解决方案",
+    "pricing": "价格",
+    "docs": "文档",
+    "login": "登录",
+    "start": "开始创建",
+    "live": "NOVA AI 2.0 IS LIVE",
+    "headline1": "让 AI 团队帮助你",
+    "headline2": "创造产品",
+    "body": "从一个想法开始，NOVA AI 自动完成产品规划、UX设计、UI设计和代码生成。释放创造力，将繁琐的执行交给专业的 AI Agent 团队。",
+    "watch": "观看演示",
+    "status": "状态",
+    "footer": "© 2026 NOVA AI. All rights reserved.",
+    "agents": {
+      "product": { "title": "Product Agent", "copy": "需求分析、功能定义与产品路线图规划。" },
+      "ux": { "title": "UX Agent", "copy": "信息架构、交互逻辑设计与线框图生成。" },
+      "design": { "title": "Design Agent", "copy": "高保真 UI 设计、设计系统创建与视觉打磨。" },
+      "code": { "title": "Code Agent", "copy": "前端组件化编码、后端 API 对接与环境部署。" }
+    }
+  }
+}

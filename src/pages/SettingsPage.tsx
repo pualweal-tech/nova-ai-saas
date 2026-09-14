@@ -1,161 +1,108 @@
-import { useState } from 'react'
-import { useRouter } from '../app/router'
+import { useRef, useState } from 'react'
 import { AppLayout, Header } from '../components/layout'
 import { Avatar, Button, Card, Input, Switch } from '../components/ui'
-import { SETTINGS_SECTIONS } from '../data/mock'
-
-function WorkspaceCard({
-  workspace,
-  setWorkspace,
-  limits,
-  setLimits,
-  onManage,
-}: {
-  workspace: string
-  setWorkspace: (value: string) => void
-  limits: boolean
-  setLimits: (value: boolean) => void
-  onManage: () => void
-}) {
-  return (
-    <Card
-      header={
-        <div>
-          <h2 className="card__title">Workspace Settings</h2>
-          <p className="muted">Manage your team environment and resource limits.</p>
-        </div>
-      }
-    >
-      <div className="card__body">
-        <Input label="Workspace Name" value={workspace} onChange={(event) => setWorkspace(event.target.value)} />
-        <div className="members-box" style={{ marginTop: 16 }}>
-          <div>
-            <strong>Members</strong>
-            <p className="muted">12 active members in this workspace.</p>
-          </div>
-          <button className="text-button" type="button" onClick={onManage}>
-            Manage List →
-          </button>
-        </div>
-        <div className="toggle-row" style={{ marginTop: 16 }}>
-          <div>
-            <strong>Enforce Usage Limits</strong>
-            <p className="muted">Automatically cap compute queries when budget is reached.</p>
-          </div>
-          <Switch checked={limits} onChange={setLimits} label="Enforce usage limits" />
-        </div>
-      </div>
-    </Card>
-  )
-}
+import { LanguageSwitcher } from '../components/LanguageSwitcher'
+import { SETTINGS_SECTIONS } from '../data/seed'
+import { useNova } from '../app/NovaProvider'
+import { useRouter } from '../app/router'
+import type { AppSettings } from '../types'
 
 export function SettingsPage() {
+  const { user, setUser, settings, setSettings, theme, setTheme, members, notify } = useNova()
   const { navigate } = useRouter()
-  const [section, setSection] = useState<(typeof SETTINGS_SECTIONS)[number]>('Account')
-  const [name, setName] = useState('Jane Doe')
-  const [email, setEmail] = useState('jane.doe@nova-analytics.com')
-  const [workspace, setWorkspace] = useState('Alpha Quadrant Analytics')
-  const [limits, setLimits] = useState(true)
+  const fileRef = useRef<HTMLInputElement>(null)
+  const [section, setSection] = useState<(typeof SETTINGS_SECTIONS)[number]>('Profile')
+  const [draftUser, setDraftUser] = useState(user)
+  const [draftSettings, setDraftSettings] = useState(settings)
   const [saving, setSaving] = useState(false)
-  const [saved, setSaved] = useState(false)
-  const [compact, setCompact] = useState(false)
-  const [emailAlerts, setEmailAlerts] = useState(true)
-  const [productTips, setProductTips] = useState(false)
-  const dirty = name !== 'Jane Doe' || email !== 'jane.doe@nova-analytics.com'
+  const [query, setQuery] = useState('')
+  const sections = SETTINGS_SECTIONS.filter((item) => item.toLowerCase().includes(query.toLowerCase()))
+
+  const dirty =
+    draftUser.name !== user.name ||
+    draftUser.email !== user.email ||
+    draftUser.avatar !== user.avatar ||
+    JSON.stringify(draftSettings) !== JSON.stringify(settings)
+
+  const patchSettings = (patch: Partial<AppSettings>) => setDraftSettings((current) => ({ ...current, ...patch }))
 
   const save = () => {
     setSaving(true)
     window.setTimeout(() => {
+      setUser(draftUser)
+      setSettings(draftSettings)
       setSaving(false)
-      setSaved(true)
-      window.setTimeout(() => setSaved(false), 1600)
+      notify('success', 'Settings saved successfully.')
     }, 700)
   }
 
   return (
-    <AppLayout header={<Header searchPlaceholder="Search analytics..." searchValue="" onSearch={() => undefined} />}>
+    <AppLayout header={<Header searchPlaceholder="Search settings..." searchValue={query} onSearch={setQuery} />}>
       <div className="page-shell">
         <section className="page-heading">
           <div>
             <h1>Settings</h1>
-            <p>Manage your account, workspace, AI preferences, and security settings.</p>
+            <p>Workspace, profile, AI preferences, and security.</p>
           </div>
         </section>
         <div className="settings-layout">
           <nav className="settings-nav">
-            {SETTINGS_SECTIONS.map((item) => (
+            {sections.map((item) => (
               <button key={item} type="button" className={section === item ? 'is-selected' : ''} onClick={() => setSection(item)}>
                 {item}
               </button>
             ))}
           </nav>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-            {section === 'Account' ? (
-              <>
-                <Card
-                  header={
+            {section === 'General' ? (
+              <Card header={<h2>General</h2>}>
+                <div className="card__body">
+                  <Input label="Workspace Name" value={draftSettings.workspaceName} onChange={(event) => patchSettings({ workspaceName: event.target.value })} />
+                  <div className="toggle-row" style={{ marginTop: 16 }}>
                     <div>
-                      <h2 className="card__title">Account Profile</h2>
-                      <p className="muted">Update your personal details and public profile.</p>
+                      <strong>Enforce usage limits</strong>
+                      <p className="muted">Cap compute when the monthly budget is reached.</p>
                     </div>
-                  }
-                >
-                  <div className="card__body">
-                    <div className="avatar-row">
-                      <Avatar src="https://i.pravatar.cc/64?img=5" name="Jane Doe" size="lg" />
-                      <Button variant="secondary" type="button">
-                        Change Avatar
-                      </Button>
-                      <Button variant="danger" type="button">
-                        Remove
-                      </Button>
-                    </div>
-                    <div className="form-grid" style={{ marginTop: 16 }}>
-                      <Input label="Full Name" value={name} onChange={(event) => setName(event.target.value)} />
-                      <Input label="Email Address" value={email} onChange={(event) => setEmail(event.target.value)} />
-                    </div>
-                    <div style={{ marginTop: 16 }}>
-                      <Input label="Role" value="Senior Data Scientist" disabled />
-                    </div>
-                    <div className="divider" />
-                    <div className="password-row">
-                      <div>
-                        <strong>Password</strong>
-                        <p className="muted">Last changed 3 months ago</p>
-                      </div>
-                      <Button variant="secondary" type="button">
-                        Update Password
-                      </Button>
-                    </div>
+                    <Switch checked={draftSettings.enforceLimits} onChange={(value) => patchSettings({ enforceLimits: value })} label="Enforce usage limits" />
                   </div>
-                  <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, padding: 16, background: 'var(--color-surface-low)', borderTop: 'var(--border)' }}>
-                    <Button variant="ghost" type="button" disabled={!dirty}>
-                      Cancel
-                    </Button>
-                    <Button type="button" loading={saving} disabled={!dirty} onClick={save}>
-                      Save Changes
-                    </Button>
-                  </div>
-                  {saved ? <div className="success-banner">Profile saved.</div> : null}
-                </Card>
-                <WorkspaceCard
-                  workspace={workspace}
-                  setWorkspace={setWorkspace}
-                  limits={limits}
-                  setLimits={setLimits}
-                  onManage={() => navigate('/team')}
-                />
-              </>
+                </div>
+              </Card>
             ) : null}
 
-            {section === 'Workspace' ? (
-              <WorkspaceCard
-                workspace={workspace}
-                setWorkspace={setWorkspace}
-                limits={limits}
-                setLimits={setLimits}
-                onManage={() => navigate('/team')}
-              />
+            {section === 'Profile' ? (
+              <Card header={<h2>Profile</h2>}>
+                <div className="card__body">
+                  <div className="avatar-row">
+                    <Avatar src={draftUser.avatar} name={draftUser.name} size="lg" />
+                    <input
+                      ref={fileRef}
+                      type="file"
+                      accept="image/*"
+                      hidden
+                      onChange={(event) => {
+                        const file = event.target.files?.[0]
+                        if (!file) return
+                        const reader = new FileReader()
+                        reader.onload = () => setDraftUser((current) => ({ ...current, avatar: String(reader.result) }))
+                        reader.readAsDataURL(file)
+                      }}
+                    />
+                    <Button variant="secondary" type="button" onClick={() => fileRef.current?.click()}>
+                      Change Avatar
+                    </Button>
+                    <Button variant="danger" type="button" onClick={() => setDraftUser((current) => ({ ...current, avatar: '' }))}>
+                      Remove
+                    </Button>
+                  </div>
+                  <div className="form-grid" style={{ marginTop: 16 }}>
+                    <Input label="Full Name" value={draftUser.name} onChange={(event) => setDraftUser((current) => ({ ...current, name: event.target.value }))} />
+                    <Input label="Email Address" value={draftUser.email} onChange={(event) => setDraftUser((current) => ({ ...current, email: event.target.value }))} />
+                  </div>
+                  <div style={{ marginTop: 16 }}>
+                    <Input label="Role" value={draftUser.role} disabled />
+                  </div>
+                </div>
+              </Card>
             ) : null}
 
             {section === 'AI Preferences' ? (
@@ -163,7 +110,7 @@ export function SettingsPage() {
                 <div className="card__body">
                   <label className="field">
                     Default model
-                    <select className="input" defaultValue="Nova-Pro-Vision">
+                    <select className="input" value={draftSettings.defaultModel} onChange={(event) => patchSettings({ defaultModel: event.target.value })}>
                       <option>Nova-Base</option>
                       <option>Nova-Pro-Vision</option>
                       <option>Nova-Ultra</option>
@@ -171,23 +118,18 @@ export function SettingsPage() {
                   </label>
                   <div className="toggle-row" style={{ marginTop: 16 }}>
                     <div>
-                      <strong>Ground answers in uploaded files</strong>
-                      <p className="muted">Prefer dataset evidence over general knowledge.</p>
+                      <strong>Auto-handoff</strong>
+                      <p className="muted">Product → UX → Design → Code without extra confirmation.</p>
                     </div>
-                    <Switch checked={limits} onChange={setLimits} label="Ground answers" />
+                    <Switch checked={draftSettings.autoHandoff} onChange={(value) => patchSettings({ autoHandoff: value })} label="Auto-handoff" />
                   </div>
-                </div>
-              </Card>
-            ) : null}
-
-            {section === 'Appearance' ? (
-              <Card header={<h2>Appearance</h2>}>
-                <div className="card__body toggle-row">
-                  <div>
-                    <strong>Compact density</strong>
-                    <p className="muted">Reduce padding in tables and navigation.</p>
+                  <div className="toggle-row" style={{ marginTop: 16 }}>
+                    <div>
+                      <strong>Memory retention</strong>
+                      <p className="muted">Keep project memory across sessions.</p>
+                    </div>
+                    <Switch checked={draftSettings.memoryRetention} onChange={(value) => patchSettings({ memoryRetention: value })} label="Memory retention" />
                   </div>
-                  <Switch checked={compact} onChange={setCompact} label="Compact density" />
                 </div>
               </Card>
             ) : null}
@@ -198,45 +140,121 @@ export function SettingsPage() {
                   <div className="toggle-row">
                     <div>
                       <strong>Email alerts</strong>
-                      <p className="muted">Usage spikes, failed jobs, and billing events.</p>
+                      <p className="muted">Failed jobs, usage spikes, billing events.</p>
                     </div>
-                    <Switch checked={emailAlerts} onChange={setEmailAlerts} label="Email alerts" />
+                    <Switch checked={draftSettings.emailAlerts} onChange={(value) => patchSettings({ emailAlerts: value })} label="Email alerts" />
                   </div>
                   <div className="toggle-row" style={{ marginTop: 12 }}>
                     <div>
                       <strong>Product tips</strong>
                       <p className="muted">Occasional workflow recommendations.</p>
                     </div>
-                    <Switch checked={productTips} onChange={setProductTips} label="Product tips" />
+                    <Switch checked={draftSettings.productTips} onChange={(value) => patchSettings({ productTips: value })} label="Product tips" />
                   </div>
+                </div>
+              </Card>
+            ) : null}
+
+            {section === 'Appearance' ? (
+              <Card header={<h2>Appearance</h2>}>
+                <div className="card__body">
+                  <div className="toggle-row">
+                    <div>
+                      <strong>Dark theme</strong>
+                      <p className="muted">Product Workspace default. Light mode is available for daytime review.</p>
+                    </div>
+                    <Switch checked={theme === 'dark'} onChange={(value) => setTheme(value ? 'dark' : 'light')} label="Dark theme" />
+                  </div>
+                  <div className="toggle-row" style={{ marginTop: 16 }}>
+                    <div>
+                      <strong>Language</strong>
+                      <p className="muted">Chrome labels. Product copy can stay bilingual.</p>
+                    </div>
+                    <LanguageSwitcher />
+                  </div>
+                  <div className="toggle-row" style={{ marginTop: 16 }}>
+                    <div>
+                      <strong>Compact density</strong>
+                      <p className="muted">Reduce padding in tables and navigation.</p>
+                    </div>
+                    <Switch checked={draftSettings.compact} onChange={(value) => patchSettings({ compact: value })} label="Compact density" />
+                  </div>
+                </div>
+              </Card>
+            ) : null}
+
+            {section === 'Integrations' ? (
+              <Card header={<h2>Integrations</h2>}>
+                <div className="card__body">
+                  {(['slack', 'github', 'figma'] as const).map((key) => (
+                    <div key={key} className="toggle-row" style={{ marginBottom: 12 }}>
+                      <strong style={{ textTransform: 'capitalize' }}>{key}</strong>
+                      <Switch checked={draftSettings[key]} onChange={(value) => patchSettings({ [key]: value })} label={key} />
+                    </div>
+                  ))}
                 </div>
               </Card>
             ) : null}
 
             {section === 'Security' ? (
               <Card header={<h2>Security</h2>}>
-                <div className="card__body toggle-row">
-                  <div>
-                    <strong>Two-factor authentication</strong>
-                    <p className="muted">Require a one-time code at sign-in.</p>
-                  </div>
-                  <Switch checked onChange={() => undefined} label="Two-factor authentication" />
-                </div>
-              </Card>
-            ) : null}
-
-            {section === 'Billing' ? (
-              <Card header={<h2>Billing</h2>}>
                 <div className="card__body">
-                  <p>You are on NOVA Pro. Manage invoices and plans in Billing.</p>
-                  <div style={{ marginTop: 16 }}>
-                    <Button type="button" onClick={() => navigate('/billing')}>
-                      Open Billing
+                  <div className="toggle-row">
+                    <div>
+                      <strong>Two-factor authentication</strong>
+                      <p className="muted">Require a one-time code at sign-in.</p>
+                    </div>
+                    <Switch checked={draftSettings.twoFactor} onChange={(value) => patchSettings({ twoFactor: value })} label="Two-factor authentication" />
+                  </div>
+                  <div className="toggle-row" style={{ marginTop: 16 }}>
+                    <div>
+                      <strong>Workspace API key</strong>
+                      <p className="muted">nova_sk_live_••••••••4f2a</p>
+                    </div>
+                    <Button
+                      variant="secondary"
+                      type="button"
+                      onClick={() => {
+                        void navigator.clipboard?.writeText('nova_sk_live_demo_4f2a')
+                        notify('success', 'API key copied.')
+                      }}
+                    >
+                      Copy
                     </Button>
                   </div>
                 </div>
               </Card>
             ) : null}
+
+            {section === 'Members' ? (
+              <Card header={<h2>Members</h2>}>
+                <div className="card__body">
+                  <p>{members.length} people in this workspace.</p>
+                  <div style={{ marginTop: 16 }}>
+                    <Button type="button" onClick={() => navigate('/team')}>
+                      Manage team
+                    </Button>
+                  </div>
+                </div>
+              </Card>
+            ) : null}
+
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
+              <Button
+                variant="ghost"
+                type="button"
+                disabled={!dirty}
+                onClick={() => {
+                  setDraftUser(user)
+                  setDraftSettings(settings)
+                }}
+              >
+                Cancel
+              </Button>
+              <Button type="button" loading={saving} disabled={!dirty} onClick={save}>
+                Save Changes
+              </Button>
+            </div>
           </div>
         </div>
       </div>

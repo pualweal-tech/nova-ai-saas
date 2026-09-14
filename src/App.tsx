@@ -1,5 +1,5 @@
 import { NovaProvider } from './app/NovaProvider'
-import { Router, useRouter } from './app/router'
+import { Router, projectIdFromPath, useRouter } from './app/router'
 import { AnalyticsPage } from './pages/AnalyticsPage'
 import { BillingPage } from './pages/BillingPage'
 import { DashboardPage } from './pages/DashboardPage'
@@ -7,9 +7,14 @@ import { ProjectsPage } from './pages/ProjectsPage'
 import { SettingsPage } from './pages/SettingsPage'
 import { TeamPage } from './pages/TeamPage'
 import { TemplatesPage } from './pages/TemplatesPage'
+import { WelcomePage } from './pages/WelcomePage'
+import { WorkspacePage } from './pages/WorkspacePage'
 
 function Routes() {
   const { path } = useRouter()
+  const projectId = projectIdFromPath(path)
+  if (path === '/welcome') return <WelcomePage />
+  if (projectId) return <WorkspacePage projectId={projectId} />
   if (path.startsWith('/projects')) return <ProjectsPage />
   if (path.startsWith('/analytics')) return <AnalyticsPage />
   if (path.startsWith('/team')) return <TeamPage />

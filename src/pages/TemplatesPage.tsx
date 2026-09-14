@@ -1,12 +1,12 @@
 import { useMemo, useState } from 'react'
+import { AppLayout, Header } from '../components/layout'
+import { Badge, Button, Dropdown, EmptyState, Icon, Modal, SearchInput } from '../components/ui'
+import { TEMPLATES, TEMPLATE_CATEGORIES } from '../data/seed'
 import { useNova } from '../app/NovaProvider'
 import { useRouter } from '../app/router'
-import { AppLayout, Header } from '../components/layout'
-import { Badge, Button, Dropdown, Icon, Modal, SearchInput } from '../components/ui'
-import { TEMPLATES, TEMPLATE_CATEGORIES } from '../data/mock'
 
 export function TemplatesPage() {
-  const { createAnalysis } = useNova()
+  const { createProject, sendCommand } = useNova()
   const { navigate } = useRouter()
   const [query, setQuery] = useState('')
   const [category, setCategory] = useState('All')
@@ -23,10 +23,11 @@ export function TemplatesPage() {
     return next
   }, [category, query, sort])
 
-  const useTemplate = (title: string) => {
-    createAnalysis(title)
+  const useTemplate = (item: (typeof TEMPLATES)[number]) => {
+    const project = createProject({ name: item.title, description: item.description, idea: item.prompt, icon: item.icon, status: 'DRAFT' })
+    sendCommand(project.id, item.prompt)
     setPreview(null)
-    navigate('/projects')
+    navigate(`/projects/${project.id}`)
   }
 
   return (
@@ -35,7 +36,7 @@ export function TemplatesPage() {
         <section className="page-heading">
           <div>
             <h1>Templates</h1>
-            <p>Discover AI workflows and ready-to-use templates.</p>
+            <p>Start from a product brief. NOVA fills the Agent pipeline.</p>
           </div>
         </section>
         <SearchInput value={query} onChange={setQuery} placeholder="Search AI templates..." />
@@ -49,61 +50,23 @@ export function TemplatesPage() {
             <Dropdown label="Sort" items={['Popular', 'Name']} value={sort} onChange={setSort} />
           </div>
         </div>
-        <article className="template-hero">
-          <div className="template-mark">
-            <Icon name="auto_awesome" />
-          </div>
-          <div>
-            <div className="chip-row">
-              <Badge tone="info">FEATURED</Badge>
-              <span className="muted">45k uses</span>
-            </div>
-            <h2 style={{ fontSize: 24, margin: '8px 0' }}>Enterprise Content Suite</h2>
-            <p className="muted">A connected marketing workflow for blog posts, social, and brand-consistent campaigns.</p>
-          </div>
-          <Button type="button" onClick={() => useTemplate('Enterprise Content Suite')}>
-            Use Template →
-          </Button>
-        </article>
         {list.length === 0 ? (
-          <div className="empty-state">No templates found. Try another category.</div>
+          <EmptyState icon="dashboard_customize" title="No templates found. Try another category." />
         ) : (
           <div className="template-grid">
             {list.map((item) => (
-              <button key={item.id} className="template-card card--interactive" type="button" onClick={() => setPreview(item)}>
-                <div className="template-card__top">
-                  <span className="template-icon">
-                    <Icon name={item.icon} />
-                  </span>
-                  <Badge tone="neutral">{item.category}</Badge>
-                </div>
+              <button key={item.id} className="card template-card card--interactive" type="button" onClick={() => setPreview(item)}>
+                <span className="template-icon">
+                  <Icon name={item.icon} />
+                </span>
+                <Badge tone="neutral">{item.category}</Badge>
                 <h3>{item.title}</h3>
-                <p>{item.description}</p>
-                <footer>
-                  <span className="muted">{item.uses} uses</span>
-                  <span className="text-button">Use →</span>
-                </footer>
+                <p className="muted">{item.description}</p>
+                <small className="muted">{item.uses} uses</small>
               </button>
             ))}
           </div>
         )}
-        <h2>Recently Used</h2>
-        <div className="recent-used">
-          {TEMPLATES.slice(0, 2).map((item) => (
-            <article key={item.id}>
-              <span className="template-icon">
-                <Icon name={item.icon} />
-              </span>
-              <div>
-                <strong>{item.title}</strong>
-                <small className="muted">Used 2 hours ago</small>
-              </div>
-              <button className="play-button" type="button" aria-label={`Use ${item.title}`} onClick={() => useTemplate(item.title)}>
-                <Icon name="play_arrow" />
-              </button>
-            </article>
-          ))}
-        </div>
       </div>
       <Modal
         open={Boolean(preview)}
@@ -112,16 +75,16 @@ export function TemplatesPage() {
         footer={
           <>
             <Button variant="ghost" type="button" onClick={() => setPreview(null)}>
-              Close
+              Cancel
             </Button>
-            <Button type="button" onClick={() => preview && useTemplate(preview.title)}>
-              Use template
+            <Button type="button" onClick={() => preview && useTemplate(preview)}>
+              Use Template
             </Button>
           </>
         }
       >
         <p>{preview?.description}</p>
-        <p className="muted">Category: {preview?.category} · {preview?.uses} uses</p>
+        <p className="muted">{preview?.prompt}</p>
       </Modal>
     </AppLayout>
   )

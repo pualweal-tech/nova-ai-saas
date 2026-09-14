@@ -1,211 +1,343 @@
-import { createContext, useCallback, useContext, useMemo, useState } from 'react'
+import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react'
 import type { ReactNode } from 'react'
-import { INITIAL_CHATS, MEMBERS } from '../data/mock'
-
-export type ChatMessage =
-  | { id: string; role: 'user'; text: string }
-  | { id: string; role: 'assistant'; text: string; rich?: boolean }
-  | { id: string; role: 'loading' }
-  | { id: string; role: 'file'; name: string; meta: string }
-
-export type Member = (typeof MEMBERS)[number]
-export type ChatThread = (typeof INITIAL_CHATS)[number] & { messages: ChatMessage[] }
-
-type Toast = { tone: 'success' | 'error'; text: string } | null
+import { DEFAULT_NODES, DEFAULT_STATE, EMPTY_ARTIFACTS } from '../data/seed'
+import { loadState, saveState } from '../utils/storage'
+import { nowIso, uid } from '../utils/ids'
+import { pipelineReply } from '../utils/pipeline'
+import type {
+  AppSettings,
+  CurrentUser,
+  DateRange,
+  Member,
+  NodeId,
+  PersistedState,
+  Project,
+  ProjectStatus,
+  Theme,
+  ToastItem,
+} from '../types'
 
 type NovaContextValue = {
-  sidebarOpen: boolean
-  setSidebarOpen: (open: boolean) => void
-  analysisOpen: boolean
-  setAnalysisOpen: (open: boolean) => void
-  historyOpen: boolean
-  setHistoryOpen: (open: boolean) => void
-  newAnalysisOpen: boolean
-  setNewAnalysisOpen: (open: boolean) => void
-  inviteOpen: boolean
-  setInviteOpen: (open: boolean) => void
-  chats: ChatThread[]
-  activeChatId: string
-  setActiveChatId: (id: string) => void
-  createAnalysis: (name: string) => string
-  sendMessage: (text: string) => void
+  user: CurrentUser
+  setUser: (patch: Partial<CurrentUser>) => void
+  theme: Theme
+  setTheme: (theme: Theme) => void
+  settings: AppSettings
+  setSettings: (patch: Partial<AppSettings>) => void
+  projects: Project[]
   members: Member[]
-  inviteMember: (payload: { name: string; email: string; role: string }) => void
-  updateMemberRole: (email: string, role: string) => void
+  notifications: PersistedState['notifications']
   selectedPlan: string
   setSelectedPlan: (id: string) => void
-  toast: Toast
-  notify: (toast: Toast) => void
+  dateRange: DateRange
+  setDateRange: (range: DateRange) => void
+  sidebarOpen: boolean
+  setSidebarOpen: (open: boolean) => void
+  toast: ToastItem | null
+  notify: (tone: ToastItem['tone'], text: string) => void
+  createProject: (input: { name: string; description?: string; status?: ProjectStatus; idea?: string; icon?: string; createdAt?: string }) => Project
+  updateProject: (id: string, patch: Partial<Project>) => void
+  deleteProject: (id: string) => void
+  sendCommand: (projectId: string, text: string) => void
+  inviteMember: (payload: { name: string; email: string; role: Member['role'] }) => void
+  updateMember: (id: string, patch: Partial<Member>) => void
+  removeMember: (id: string) => void
+  markNotificationsRead: () => void
+  addNotification: (title: string, body: string) => void
 }
 
 const NovaContext = createContext<NovaContextValue | null>(null)
 
-const seedMessages: ChatMessage[] = [
-  {
-    id: 'u1',
-    role: 'user',
-    text: "I've uploaded the Sales_Data_Master.csv file. Can you analyze the Q1 to Q4 revenue trends across our three main regions (NA, EMEA, APAC) and highlight any anomalies?",
-  },
-  { id: 'f1', role: 'file', name: 'Sales_Data_Master.csv', meta: '24.5 MB · 120k rows' },
-  {
-    id: 'a1',
-    role: 'assistant',
-    rich: true,
-    text: "I've analyzed the dataset. Overall, global revenue grew by +14.2% year-over-year. Here is the breakdown of revenue trends across NA, EMEA, and APAC for 2023.",
-  },
-]
-
-function replyFor(prompt: string) {
-  if (/emea/i.test(prompt)) {
-    return 'EMEA Q3 shows an 18% contraction against a 6% historical band. Supply-chain lag in September is the strongest correlated signal. I recommend joining logistics tickets before you lock the board narrative.'
+function cloneState(): PersistedState {
+  const loaded = loadState(DEFAULT_STATE)
+  return {
+    ...DEFAULT_STATE,
+    ...loaded,
+    user: { ...DEFAULT_STATE.user, ...loaded.user },
+    settings: { ...DEFAULT_STATE.settings, ...loaded.settings },
+    projects: loaded.projects?.length ? loaded.projects : DEFAULT_STATE.projects,
+    members: loaded.members?.length ? loaded.members : DEFAULT_STATE.members,
+    notifications: loaded.notifications ?? DEFAULT_STATE.notifications,
+    dateRange: loaded.dateRange ?? DEFAULT_STATE.dateRange,
   }
-  if (/forecast/i.test(prompt)) {
-    return 'Q4 forecast (base case) is +9.4% sequential, with APAC contributing 61% of incremental revenue. Confidence is 88% given current pipeline coverage.'
-  }
-  return `Nova finished analyzing “${prompt}”. Key pattern: growth is concentrated in APAC, while EMEA variance remains the primary risk to the annual target.`
 }
 
 export function NovaProvider({ children }: { children: ReactNode }) {
+  const [state, setState] = useState<PersistedState>(cloneState)
   const [sidebarOpen, setSidebarOpen] = useState(false)
-  const [analysisOpen, setAnalysisOpen] = useState(false)
-  const [historyOpen, setHistoryOpen] = useState(false)
-  const [newAnalysisOpen, setNewAnalysisOpen] = useState(false)
-  const [inviteOpen, setInviteOpen] = useState(false)
-  const [activeChatId, setActiveChatId] = useState(INITIAL_CHATS[0].id)
-  const [chats, setChats] = useState<ChatThread[]>(
-    INITIAL_CHATS.map((chat, index) => ({
-      ...chat,
-      messages: index === 0 ? seedMessages : [],
-    })),
+  const [toast, setToast] = useState<ToastItem | null>(null)
+
+  useEffect(() => {
+    saveState(state)
+    document.documentElement.dataset.theme = state.theme
+    document.documentElement.style.colorScheme = state.theme
+    document.documentElement.classList.toggle('is-compact', state.settings.compact)
+  }, [state])
+
+  const notify = useCallback((tone: ToastItem['tone'], text: string) => {
+    const item = { id: uid('toast'), tone, text }
+    setToast(item)
+    window.setTimeout(() => setToast((current) => (current?.id === item.id ? null : current)), 2600)
+  }, [])
+
+  const patchState = useCallback((updater: (current: PersistedState) => PersistedState) => {
+    setState((current) => updater(current))
+  }, [])
+
+  const setUser = useCallback((patch: Partial<CurrentUser>) => {
+    patchState((current) => {
+      const user = { ...current.user, ...patch }
+      return {
+        ...current,
+        user,
+        members: current.members.map((member) =>
+          member.email === current.user.email || member.id === 'm-charles' ? { ...member, name: user.name, email: user.email, role: user.role, avatar: user.avatar } : member,
+        ),
+      }
+    })
+  }, [patchState])
+
+  const setTheme = useCallback((theme: Theme) => {
+    patchState((current) => ({ ...current, theme }))
+  }, [patchState])
+
+  const setSettings = useCallback((patch: Partial<AppSettings>) => {
+    patchState((current) => ({ ...current, settings: { ...current.settings, ...patch } }))
+  }, [patchState])
+
+  const setSelectedPlan = useCallback((id: string) => {
+    patchState((current) => ({ ...current, selectedPlan: id }))
+  }, [patchState])
+
+  const setDateRange = useCallback((range: DateRange) => {
+    patchState((current) => ({ ...current, dateRange: range }))
+  }, [patchState])
+
+  const createProject = useCallback(
+    (input: { name: string; description?: string; status?: ProjectStatus; idea?: string; icon?: string; createdAt?: string }) => {
+      const stamp = input.createdAt ?? nowIso()
+      const project: Project = {
+        id: uid('prj'),
+        name: input.name.trim() || 'Untitled project',
+        description: input.description?.trim() || 'New product workspace',
+        status: input.status ?? 'DRAFT',
+        version: 'v0.1.0',
+        icon: input.icon ?? 'auto_awesome',
+        createdAt: stamp,
+        updatedAt: stamp,
+        memberIds: ['m-charles'],
+        idea: input.idea?.trim() || input.name,
+        events: [
+          {
+            id: uid('evt'),
+            at: nowIso(),
+            actor: 'system',
+            text: '> 初始化协作进程...\n> 加载系统预设参数 [Technical Minimalist]\n[OK] 所有计算节点已就绪，等待输入指令。',
+          },
+        ],
+        artifacts: { ...EMPTY_ARTIFACTS },
+        nodes: DEFAULT_NODES.map((node) => ({ ...node })),
+        clusterStatus: 'Optimal',
+      }
+      patchState((current) => ({ ...current, projects: [project, ...current.projects] }))
+      notify('success', 'Project created successfully.')
+      return project
+    },
+    [notify, patchState],
   )
-  const [members, setMembers] = useState(MEMBERS)
-  const [selectedPlan, setSelectedPlan] = useState('pro')
-  const [toast, setToast] = useState<Toast>(null)
 
-  const notify = useCallback((next: Toast) => {
-    setToast(next)
-    if (next) window.setTimeout(() => setToast(null), 2400)
-  }, [])
-
-  const createAnalysis = useCallback((name: string) => {
-    const id = `chat-${Date.now()}`
-    setChats((current) => [
-      {
-        id,
-        title: name,
-        subtitle: 'New analysis',
-        group: 'Today',
-        context: 'Untitled dataset',
-        messages: [],
-      },
+  const updateProject = useCallback((id: string, patch: Partial<Project>) => {
+    patchState((current) => ({
       ...current,
-    ])
-    setActiveChatId(id)
-    return id
-  }, [])
+      projects: current.projects.map((project) => (project.id === id ? { ...project, ...patch, updatedAt: nowIso() } : project)),
+    }))
+    notify('success', 'Project updated.')
+  }, [notify, patchState])
 
-  const sendMessage = useCallback(
-    (text: string) => {
+  const deleteProject = useCallback(
+    (id: string) => {
+      patchState((current) => ({ ...current, projects: current.projects.filter((project) => project.id !== id) }))
+      notify('warning', 'Project removed.')
+    },
+    [notify, patchState],
+  )
+
+  const sendCommand = useCallback(
+    (projectId: string, text: string) => {
       const trimmed = text.trim()
       if (!trimmed) return
-      const userId = `u-${Date.now()}`
-      const loadId = `l-${Date.now()}`
-      setChats((current) =>
-        current.map((chat) =>
-          chat.id === activeChatId
+      const userEvent = { id: uid('evt'), at: nowIso(), actor: 'user' as const, text: trimmed }
+      patchState((current) => ({
+        ...current,
+        projects: current.projects.map((project) =>
+          project.id === projectId
             ? {
-                ...chat,
-                messages: [
-                  ...chat.messages,
-                  { id: userId, role: 'user', text: trimmed },
-                  { id: loadId, role: 'loading' },
-                ],
+                ...project,
+                events: [...project.events, userEvent],
+                nodes: project.nodes.map((node) =>
+                  node.id === 'PM_Node_01' ? { ...node, status: 'PROCESSING', progress: 12, task: 'Intent parsing' } : node,
+                ),
               }
-            : chat,
+            : project,
         ),
-      )
+      }))
+
+      const steps: { delay: number; node: NodeId; progress: number }[] = [
+        { delay: 600, node: 'PM_Node_01', progress: 100 },
+        { delay: 1400, node: 'UX_Architect', progress: 100 },
+        { delay: 2200, node: 'UI_Engine', progress: 100 },
+        { delay: 3000, node: 'DEV_Compiler', progress: 100 },
+      ]
+
       window.setTimeout(() => {
-        setChats((current) =>
-          current.map((chat) =>
-            chat.id === activeChatId
-              ? {
-                  ...chat,
-                  messages: chat.messages
-                    .filter((message) => message.id !== loadId)
-                    .concat({
-                      id: `a-${Date.now()}`,
-                      role: 'assistant',
-                      text: replyFor(trimmed),
-                    }),
-                }
-              : chat,
-          ),
-        )
-      }, 900)
+        setState((current) => {
+          const project = current.projects.find((item) => item.id === projectId)
+          if (!project) return current
+          const result = pipelineReply(trimmed, project)
+          return {
+            ...current,
+            projects: current.projects.map((item) =>
+              item.id === projectId
+                ? {
+                    ...item,
+                    events: [...item.events, ...result.events],
+                    artifacts: result.artifacts,
+                    status: 'ACTIVE',
+                    clusterStatus: 'Optimal',
+                    updatedAt: nowIso(),
+                    nodes: item.nodes.map((node) => ({
+                      ...node,
+                      status: node.id === 'DEV_Compiler' ? 'IDLE' : 'STANDBY',
+                      progress: 100,
+                      task: 'Completed',
+                    })),
+                  }
+                : item,
+            ),
+          }
+        })
+        notify('success', trimmed.startsWith('/export_json') ? 'Export package ready.' : 'AI generation complete.')
+      }, 3200)
+
+      steps.forEach((step) => {
+        window.setTimeout(() => {
+          setState((current) => ({
+            ...current,
+            projects: current.projects.map((project) =>
+              project.id === projectId
+                ? {
+                    ...project,
+                    nodes: project.nodes.map((node) =>
+                      node.id === step.node
+                        ? { ...node, status: 'PROCESSING', progress: step.progress, task: 'Running' }
+                        : node.status === 'PROCESSING'
+                          ? { ...node, status: 'IDLE', progress: 100 }
+                          : node,
+                    ),
+                  }
+                : project,
+            ),
+          }))
+        }, step.delay)
+      })
     },
-    [activeChatId],
+    [notify, patchState],
   )
 
-  const inviteMember = useCallback((payload: { name: string; email: string; role: string }) => {
-    setMembers((current) => [
-      {
-        name: payload.name,
-        email: payload.email,
+  const inviteMember = useCallback(
+    (payload: { name: string; email: string; role: Member['role'] }) => {
+      const member: Member = {
+        id: uid('mem'),
+        name: payload.name.trim(),
+        email: payload.email.trim(),
         role: payload.role,
         status: 'Invited',
-        lastActive: '—',
         avatar: '',
-      },
-      ...current,
-    ])
-    notify({ tone: 'success', text: `Invite sent to ${payload.email}` })
-  }, [notify])
+        lastActive: nowIso(),
+      }
+      patchState((current) => ({ ...current, members: [member, ...current.members] }))
+      notify('success', `Invite sent to ${member.email}`)
+    },
+    [notify, patchState],
+  )
 
-  const updateMemberRole = useCallback((email: string, role: string) => {
-    setMembers((current) => current.map((member) => (member.email === email ? { ...member, role } : member)))
-  }, [])
+  const updateMember = useCallback((id: string, patch: Partial<Member>) => {
+    patchState((current) => ({
+      ...current,
+      members: current.members.map((member) => (member.id === id ? { ...member, ...patch } : member)),
+    }))
+  }, [patchState])
+
+  const removeMember = useCallback(
+    (id: string) => {
+      patchState((current) => ({ ...current, members: current.members.filter((member) => member.id !== id) }))
+      notify('warning', 'Member removed.')
+    },
+    [notify, patchState],
+  )
+
+  const markNotificationsRead = useCallback(() => {
+    patchState((current) => ({
+      ...current,
+      notifications: current.notifications.map((item) => ({ ...item, read: true })),
+    }))
+  }, [patchState])
+
+  const addNotification = useCallback((title: string, body: string) => {
+    patchState((current) => ({
+      ...current,
+      notifications: [{ id: uid('n'), title, body, read: false, at: nowIso() }, ...current.notifications],
+    }))
+  }, [patchState])
 
   const value = useMemo(
     () => ({
+      user: state.user,
+      setUser,
+      theme: state.theme,
+      setTheme,
+      settings: state.settings,
+      setSettings,
+      projects: state.projects,
+      members: state.members,
+      notifications: state.notifications,
+      selectedPlan: state.selectedPlan,
+      setSelectedPlan,
+      dateRange: state.dateRange,
+      setDateRange,
       sidebarOpen,
       setSidebarOpen,
-      analysisOpen,
-      setAnalysisOpen,
-      historyOpen,
-      setHistoryOpen,
-      newAnalysisOpen,
-      setNewAnalysisOpen,
-      inviteOpen,
-      setInviteOpen,
-      chats,
-      activeChatId,
-      setActiveChatId,
-      createAnalysis,
-      sendMessage,
-      members,
-      inviteMember,
-      updateMemberRole,
-      selectedPlan,
-      setSelectedPlan,
       toast,
       notify,
+      createProject,
+      updateProject,
+      deleteProject,
+      sendCommand,
+      inviteMember,
+      updateMember,
+      removeMember,
+      markNotificationsRead,
+      addNotification,
     }),
     [
+      state,
       sidebarOpen,
-      analysisOpen,
-      historyOpen,
-      newAnalysisOpen,
-      inviteOpen,
-      chats,
-      activeChatId,
-      createAnalysis,
-      sendMessage,
-      members,
-      inviteMember,
-      updateMemberRole,
-      selectedPlan,
       toast,
+      setUser,
+      setTheme,
+      setSettings,
+      setSelectedPlan,
+      setDateRange,
       notify,
+      createProject,
+      updateProject,
+      deleteProject,
+      sendCommand,
+      inviteMember,
+      updateMember,
+      removeMember,
+      markNotificationsRead,
+      addNotification,
     ],
   )
 
